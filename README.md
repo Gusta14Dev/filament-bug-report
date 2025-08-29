@@ -115,4 +115,4 @@ This ensures type safety while allowing the flexibility required for cursor pagi
 ## Official Bug Report
 This repository was created to support the issue submitted to the main Filament repository. Once the issue is created, the link will be added here for reference.
 
-Link to Issue: [Add the link to your Filament GitHub issue here]
+Link to Issue: https://github.com/filamentphp/filament/issues/17569
