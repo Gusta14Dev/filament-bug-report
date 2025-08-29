@@ -1,66 +1,118 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Filament Cursor Pagination TypeError - Reproduction Repository
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+This repository contains a minimal Laravel 12 and Filament installation to demonstrate a `TypeError` that occurs when using cursor pagination (`PaginationMode::Cursor`) in a Filament Table resource.
 
-## About Laravel
+## The Bug
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+When using cursor pagination, Filament throws a fatal `TypeError` upon attempting to navigate to the next page. This happens because the page cursor is a **string**, but the `HasTable` contract and the `InteractsWithTable` trait specify an **int** return type for the `getTablePage()` method, causing a type mismatch.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Prerequisites
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- PHP 8.4+
+- Composer
+- A configured database (SQLite is sufficient)
 
-## Learning Laravel
+## Setup and Reproduction Steps
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/Gusta14Dev/filament-bug-report.git
+    cd filament-bug-report
+    ```
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+2.  **Install dependencies:**
+    ```bash
+    composer install
+    ```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+3.  **Run migrations and seed the database:**
+    *This command will create the necessary tables, a test user, and 100 sample records for pagination.*
+    ```bash
+    php artisan migrate:fresh --seed
+    ```
 
-## Laravel Sponsors
+4.  **Start the development server:**
+    ```bash
+    php artisan serve
+    ```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+57.  **Reproduce the bug:**
+    a. Access the application at `http://127.0.0.1:8000/admin`.
+    b. Log in using the credentials below.
+    c. Navigate to the "Tests" resource in the sidebar.
+    d. **Observe the fatal `TypeError`**.
 
-### Premium Partners
+## Login Credentials
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+-   **Email:** `test@example.com`
+-   **Password:** `password`
 
-## Contributing
+## Technical Analysis
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+The root cause of the error is a type hint mismatch in the Filament Tables package.
 
-## Code of Conduct
+-   Cursor pagination generates a non-integer token (a string) to identify the next set of records.
+-   The `Filament\Tables\Contracts\HasTable` contract, however, strictly defines the `getTablePage()` method to return an `int`.
+-   The `Filament\Tables\Concerns\CanPaginateRecords` trait follows the contract and the `getTablePage()` method to return an `int`.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
 
-## Security Vulnerabilities
+**File:** `vendor/filament/tables/src/Concerns/CanPaginateRecords.php`
+```php
+<?php
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+namespace Filament\Tables\Concerns;
 
-## License
+// ...
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+trait CanPaginateRecords
+{
+    // ...
+
+    public function getTablePage(): int | string
+    {
+        return $this->getPage($this->getTablePaginationPageName());
+    }
+
+    // ...
+}
+```
+
+**File:** `vendor/filament/tables/src/Contracts/HasTable.php`
+```php
+<?php
+
+namespace Filament\Tables\Contracts;
+
+// ...
+
+interface HasTable
+{
+    // ...
+
+    public function getTablePage(): int;
+
+    // ...
+}
+```
+
+When the table tries to get the current page with a string cursor, it violates this contract, leading to the TypeError.
+
+## Proposed Solution
+To accommodate both integer-based and string-based (cursor) pagination, the method signature should be updated to accept both types.
+
+The following change should be applied to HasTable.php and any corresponding implementations:
+
+```diff
+// Em vendor/filament/tables/src/Contracts/HasTable.php
+
+- public function getTablePage(): int;
++ public function getTablePage(): int | string;
+
+```
+
+This ensures type safety while allowing the flexibility required for cursor pagination to function correctly.
+
+## Official Bug Report
+This repository was created to support the issue submitted to the main Filament repository. Once the issue is created, the link will be added here for reference.
+
+Link to Issue: [Add the link to your Filament GitHub issue here]
