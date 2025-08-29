@@ -68,7 +68,7 @@ trait CanPaginateRecords
 {
     // ...
 
-    public function getTablePage(): int | string
+    public function getTablePage(): int
     {
         return $this->getPage($this->getTablePaginationPageName());
     }
