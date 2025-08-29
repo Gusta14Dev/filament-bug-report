@@ -45,7 +45,7 @@ When using cursor pagination, Filament throws a fatal `TypeError` upon attemptin
 ## Login Credentials
 
 -   **Email:** `test@example.com`
--   **Password:** `password`
+-   **Password:** `12345678`
 
 ## Technical Analysis
 
